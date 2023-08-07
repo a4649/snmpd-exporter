@@ -1,0 +1,52 @@
+---
+- name: Deploy snmp no Rocky Linux 8
+  hosts: '{{ hosts }}'
+  become: true
+
+  tasks:
+    - name: Install snmp packages
+      dnf:
+        name: ['ipmitool', 'net-snmp', 'net-snmp-agent-libs', 'net-snmp-utils', 'net-snmp-libs']
+        state: present
+        update_cache: True
+
+    - name: Move configuration file
+      copy:
+        remote_src: yes
+        src: /etc/snmp/snmpd.conf
+        dest: /etc/snmp/snmpd.conf.origin
+
+    - name: Copy new snmpd.conf
+      copy:
+        src: '/tmp/snmpd.conf'
+        dest: /etc/snmp/snmpd.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Copy snmp_ipmi
+      copy:
+        src: '/tmp/snmp_ipmi'
+        dest: /etc/snmp/snmp_ipmi
+        owner: root
+        group: root
+        mode: '0655'
+
+    - name: cron job
+      cron:
+        name: "ipmit sensor list"
+        state: present
+        minute: "*/2"
+        hour: "*"
+        day: "*"
+        month: "*"
+        weekday: "*"
+        job: '/usr/bin/ipmitool sensor list > /etc/snmp/ipmi_sensor_list'
+
+    - name: Start snmpd service
+      systemd:
+        name: snmpd
+        state: restarted
+
+    
+
